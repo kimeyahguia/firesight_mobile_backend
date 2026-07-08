@@ -62,7 +62,7 @@ try {
 
     // ── REGULAR USER: original full profile query ──
     $userStmt = $conn->prepare("
-        SELECT id, full_name, email, avatar_url, barangay, is_verified
+        SELECT id, full_name, email, phone, avatar_url, barangay, is_verified
         FROM users
         WHERE id = :user_id
     ");

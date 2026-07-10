@@ -4,7 +4,7 @@ require_once '../config/db.php';
 
 try {
     $stmt = $conn->query("
-        SELECT b.id, b.name, b.risk_level AS risk, b.note, b.lat, b.lng, b.updated_at,
+        SELECT b.id, b.name, b.risk_level AS risk, b.note, b.lat, b.lng, b.boundary_coords, b.updated_at,
                COUNT(i.id) AS incidents
         FROM barangays b
         LEFT JOIN incidents i ON i.barangay = b.name AND i.created_at >= NOW() - INTERVAL 7 DAY
@@ -14,6 +14,14 @@ try {
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $data = array_map(function ($r) {
+        $boundary = [];
+        if (!empty($r['boundary_coords'])) {
+            $decoded = json_decode($r['boundary_coords'], true);
+            if (is_array($decoded)) {
+                $boundary = $decoded;
+            }
+        }
+
         return [
             'id' => (string) $r['id'],
             'name' => $r['name'],
@@ -23,6 +31,7 @@ try {
             'lastUpdate' => timeAgo($r['updated_at']),
             'lat' => (float) $r['lat'],
             'lng' => (float) $r['lng'],
+            'boundary' => $boundary,
         ];
     }, $rows);
 

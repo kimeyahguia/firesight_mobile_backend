@@ -1,8 +1,10 @@
 <?php
-// ── FOR BFP SIDE ── Recent Incidents preview
+// firesight_api/bfp/dashboard/incidents.php
+// Nagbabalik ng listahan ng fire incidents para sa BFP Incidents screen.
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -10,63 +12,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../config/db.php'; // dapat naglalabas ng PDO sa $conn
 
-$limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 4;
-if ($limit <= 0) $limit = 4;
-
-function time_ago($datetime) {
-    $diff = time() - strtotime($datetime);
-    if ($diff < 60) return 'Just now';
-    if ($diff < 3600) return floor($diff / 60) . ' min ago';
-    if ($diff < 86400) return floor($diff / 3600) . ' hr ago';
-    return floor($diff / 86400) . ' day(s) ago';
-}
-
-// I-normalize ang kahit anong raw status value galing DB papunta sa
-// canonical set na inaasahan ng UI: Active | Responding | Verified | Resolved
-function normalize_status($raw) {
-    $map = [
-        'pending'    => 'Active',
-        'active'     => 'Active',
-        'responding' => 'Responding',
-        'dispatched' => 'Responding',
-        'verified'   => 'Verified',
-        'resolved'   => 'Resolved',
-        'closed'     => 'Resolved',
-    ];
-    $key = strtolower(trim($raw ?? ''));
-    return $map[$key] ?? 'Active';
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+    exit();
 }
 
 try {
-    $stmt = $conn->prepare("
-        SELECT id, reference_id, incident_type, barangay, severity, status, full_name, latitude, longitude, created_at
-        FROM incidents
-        ORDER BY created_at DESC
-        LIMIT :limit
-    ");
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->execute();
+    // Optional filters — pwedeng dagdagan ng ?status=Pending o ?barangay=Bucana kung kailangan
+    $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : null;
+
+    $sql = "SELECT
+                i.id,
+                i.reference_id,
+                i.user_id,
+                i.title,
+                i.description,
+                i.photo_url,
+                i.location,
+                i.barangay,
+                i.street_landmark,
+                i.location_details,
+                i.latitude,
+                i.longitude,
+                i.what_is_on_fire,
+                i.severity,
+                i.incident_type,
+                i.people_at_risk,
+                i.fire_active,
+                i.responders_on_site,
+                i.full_name,
+                i.contact_number,
+                i.status,
+                i.created_at,
+                i.verified_by,
+                i.verified_at,
+                vp.full_name AS verified_by_name
+            FROM incidents i
+            LEFT JOIN bfp_personnel vp ON i.verified_by = vp.id";
+
+    $params = [];
+
+    if ($statusFilter !== null && $statusFilter !== '' && strtolower($statusFilter) !== 'all') {
+        $sql .= " WHERE i.status = :status";
+        $params[':status'] = $statusFilter;
+    }
+
+    $sql .= " ORDER BY i.created_at DESC";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $data = array_map(function ($r) {
+    $incidents = array_map(function ($row) {
         return [
-            'id' => (string) $r['id'],
-            'type' => $r['incident_type'],
-            'barangay' => $r['barangay'] ?? '—',
-            'timeAgo' => time_ago($r['created_at']),
-            'severity' => $r['severity'],
-            'status' => normalize_status($r['status']),
-            'reportedBy' => $r['full_name'] ?? 'Anonymous',
-            'lat' => $r['latitude'] !== null ? (float) $r['latitude'] : 0,
-            'lng' => $r['longitude'] !== null ? (float) $r['longitude'] : 0,
-            'referenceId' => $r['reference_id'],
+            'id'                => (string) $row['id'],
+            'refId'              => $row['reference_id'],
+            'reporter'           => $row['full_name'] ?? 'Unknown',
+            'reporterPhone'      => $row['contact_number'] ?? '',
+            'reporterBarangay'   => $row['barangay'] ?? '',
+            'barangay'           => $row['barangay'] ?? '',
+            'type'               => $row['incident_type'] ?? $row['title'],
+            'dateTime'           => date('M j, Y · h:i A', strtotime($row['created_at'])),
+            'status'             => ucfirst(strtolower($row['status'])),
+            'severity'           => $row['severity'] ?? 'Moderate',
+            'description'        => $row['description'] ?? '',
+            'photoAttached'      => !empty($row['photo_url']),
+            'photoUrl'           => $row['photo_url'],
+            'causeOfFire'        => $row['what_is_on_fire'],
+            'findings'           => $row['location_details'],
+            'additionalNotes'    => $row['street_landmark'],
+            'latitude'           => $row['latitude'] !== null ? (float) $row['latitude'] : null,
+            'longitude'          => $row['longitude'] !== null ? (float) $row['longitude'] : null,
+            'peopleAtRisk'       => $row['people_at_risk'],
+            'fireActive'         => $row['fire_active'],
+            'respondersOnSite'   => $row['responders_on_site'],
+            'verifiedByName'     => $row['verified_by_name'],
+            'verifiedAt'         => $row['verified_at'] ? date('M j, Y · h:i A', strtotime($row['verified_at'])) : null,
         ];
     }, $rows);
 
-    echo json_encode(['success' => true, 'data' => $data]);
+    echo json_encode([
+        'success' => true,
+        'data'    => $incidents,
+    ]);
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Failed to load recent incidents.']);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Database error: ' . $e->getMessage(),
+    ]);
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Server error: ' . $e->getMessage(),
+    ]);
 }

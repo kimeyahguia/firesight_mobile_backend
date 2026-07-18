@@ -31,8 +31,9 @@ try {
             MAX(i.created_at) AS last_incident_at
         FROM barangays b
         LEFT JOIN incidents i
-            ON i.barangay = b.name AND YEAR(i.created_at) = :year
-        GROUP BY b.id
+            ON LOWER(TRIM(i.barangay)) = LOWER(TRIM(b.name))
+            AND YEAR(i.created_at) = :year
+        GROUP BY b.id, b.name, b.lat, b.lng, b.boundary_coords
         ORDER BY b.name ASC
     ");
     $stmt->execute([':year' => $year]);
@@ -71,7 +72,7 @@ try {
     $markers = array_map(function ($m) {
         return [
             'id' => (string) $m['id'],
-            'barangay' => $m['barangay'],
+            'barangay' => trim($m['barangay']),
             'lat' => (float) $m['latitude'],
             'lng' => (float) $m['longitude'],
             'type' => $m['incident_type'],

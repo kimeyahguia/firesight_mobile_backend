@@ -5,7 +5,7 @@ error_reporting(E_ERROR | E_PARSE); // itago ang notices/warnings sa output
 ini_set('display_errors', '0');      // huwag i-echo errors sa body
 
 header("Content-Type: application/json");
-require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../../config/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

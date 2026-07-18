@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../../config/db.php';
 
 try {
     $stmt = $conn->query("SELECT * FROM bfp_station_info ORDER BY id DESC LIMIT 1");

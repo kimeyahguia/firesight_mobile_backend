@@ -6,8 +6,7 @@ ini_set('log_errors', 1);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-
-require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../../config/db.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $user_id = isset($input['user_id']) ? (int) $input['user_id'] : 0;

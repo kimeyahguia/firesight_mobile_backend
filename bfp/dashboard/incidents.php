@@ -66,33 +66,34 @@ try {
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $incidents = array_map(function ($row) {
-        return [
-            'id'                => (string) $row['id'],
-            'refId'              => $row['reference_id'],
-            'reporter'           => $row['full_name'] ?? 'Unknown',
-            'reporterPhone'      => $row['contact_number'] ?? '',
-            'reporterBarangay'   => $row['barangay'] ?? '',
-            'barangay'           => $row['barangay'] ?? '',
-            'type'               => $row['incident_type'] ?? $row['title'],
-            'dateTime'           => date('M j, Y · h:i A', strtotime($row['created_at'])),
-            'status'             => ucfirst(strtolower($row['status'])),
-            'severity'           => $row['severity'] ?? 'Moderate',
-            'description'        => $row['description'] ?? '',
-            'photoAttached'      => !empty($row['photo_url']),
-            'photoUrl'           => $row['photo_url'],
-            'causeOfFire'        => $row['what_is_on_fire'],
-            'findings'           => $row['location_details'],
-            'additionalNotes'    => $row['street_landmark'],
-            'latitude'           => $row['latitude'] !== null ? (float) $row['latitude'] : null,
-            'longitude'          => $row['longitude'] !== null ? (float) $row['longitude'] : null,
-            'peopleAtRisk'       => $row['people_at_risk'],
-            'fireActive'         => $row['fire_active'],
-            'respondersOnSite'   => $row['responders_on_site'],
-            'verifiedByName'     => $row['verified_by_name'],
-            'verifiedAt'         => $row['verified_at'] ? date('M j, Y · h:i A', strtotime($row['verified_at'])) : null,
-        ];
-    }, $rows);
+   $incidents = array_map(function ($row) {
+            return [
+                'id'                => (string) $row['id'],
+                'refId'              => $row['reference_id'],
+                'reporter'           => $row['full_name'] ?? 'Unknown',
+                'reporterPhone'      => $row['contact_number'] ?? '',
+                'reporterBarangay'   => $row['barangay'] ?? '',
+                'barangay'           => $row['barangay'] ?? '',
+                'location'           => $row['location'] ?? '',   // ⬅ BAGO — buong location string mula sa DB
+                'type'               => $row['incident_type'] ?? $row['title'],
+                'dateTime'           => date('M j, Y · h:i A', strtotime($row['created_at'])),
+                'status'             => ucfirst(strtolower($row['status'])),
+                'severity'           => $row['severity'] ?? 'Moderate',
+                'description'        => $row['description'] ?? '',
+                'photoAttached'      => !empty($row['photo_url']),
+                'photoUrl'           => $row['photo_url'],
+                'causeOfFire'        => $row['what_is_on_fire'],
+                'findings'           => $row['location_details'],
+                'additionalNotes'    => $row['street_landmark'],
+                'latitude'           => $row['latitude'] !== null ? (float) $row['latitude'] : null,
+                'longitude'          => $row['longitude'] !== null ? (float) $row['longitude'] : null,
+                'peopleAtRisk'       => $row['people_at_risk'],
+                'fireActive'         => $row['fire_active'],
+                'respondersOnSite'   => $row['responders_on_site'],
+                'verifiedByName'     => $row['verified_by_name'],
+                'verifiedAt'         => $row['verified_at'] ? date('M j, Y · h:i A', strtotime($row['verified_at'])) : null,
+            ];
+        }, $rows);
 
     echo json_encode([
         'success' => true,

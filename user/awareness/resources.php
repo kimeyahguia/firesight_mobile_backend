@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../../config/db.php';
 
 try {
     $stmt = $conn->query("SELECT id, title, category, snippet, icon, read_time, body FROM resources ORDER BY id ASC");

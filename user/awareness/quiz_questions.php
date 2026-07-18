@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../../config/db.php';
 
 try {
     $stmt = $conn->query("SELECT id, question, choices, correct_index, explanation FROM quiz_questions ORDER BY sort_order ASC");

@@ -6,8 +6,7 @@ ini_set('log_errors', 1);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-
-include_once '../config/db.php';
+require_once __DIR__ . '/../../config/db.php';
 
 if (!isset($conn)) {
     if (isset($pdo)) {

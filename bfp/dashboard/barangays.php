@@ -1,14 +1,25 @@
 <?php
-//barangay.php
+// firesight_api/bfp/dashboard/barangays.php
+// ── FOR BFP SIDE ── Barangay list with risk level + boundary polygon,
+// ginagamit ng Dashboard risk map preview (hiwalay ito sa user-side
+// na /user/map/barangay.php para hindi magkahalo ang dalawang side).
+
 error_reporting(E_ERROR | E_PARSE);
 ini_set('display_errors', '0');
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 require_once __DIR__ . '/../../config/db.php';
 
-function timeAgo(?string $datetime): string {
+function bfp_time_ago(?string $datetime): string {
     if (empty($datetime)) return 'No updates yet';
     $diff = time() - strtotime($datetime);
     if ($diff < 60) return 'just now';
@@ -38,15 +49,15 @@ try {
         }
 
         return [
-            'id' => (string) $r['id'],
-            'name' => $r['name'],
-            'risk' => $r['risk'] ?? 'Low',
-            'incidents' => (int) $r['incidents'],
-            'note' => $r['note'] ?? '',
-            'lastUpdate' => timeAgo($r['updated_at']),
-            'lat' => $r['lat'] !== null ? (float) $r['lat'] : 0,
-            'lng' => $r['lng'] !== null ? (float) $r['lng'] : 0,
-            'boundary' => $boundary,
+            'id'         => (string) $r['id'],
+            'name'       => $r['name'],
+            'risk'       => $r['risk'] ?? 'Low',
+            'incidents'  => (int) $r['incidents'],
+            'note'       => $r['note'] ?? '',
+            'lastUpdate' => bfp_time_ago($r['updated_at']),
+            'lat'        => $r['lat'] !== null ? (float) $r['lat'] : 0,
+            'lng'        => $r['lng'] !== null ? (float) $r['lng'] : 0,
+            'boundary'   => $boundary,
         ];
     }, $rows);
 

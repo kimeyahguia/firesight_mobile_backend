@@ -28,6 +28,14 @@ if (!$incidentId) {
     exit();
 }
 
+// ── Helper: nagko-convert ng raw blob (longblob column) papuntang
+// base64 data URI para direktang magamit ng <Image source={{ uri }} />
+// sa frontend, walang kailangang extra file-serving endpoint.
+function blobToDataUri($blob, string $mime = 'image/jpeg'): ?string {
+    if ($blob === null || $blob === '') return null;
+    return 'data:' . $mime . ';base64,' . base64_encode($blob);
+}
+
 try {
     $sql = "SELECT
                 i.id,
@@ -70,6 +78,8 @@ try {
         exit();
     }
 
+    $photoDataUri = blobToDataUri($row['photo_url']);
+
     $incident = [
         'id'                => (string) $row['id'],
         'refId'              => $row['reference_id'],
@@ -83,8 +93,12 @@ try {
         'status'             => ucfirst(strtolower($row['status'])),
         'severity'           => $row['severity'] ?? 'Moderate',
         'description'        => $row['description'] ?? '',
-        'photoAttached'      => !empty($row['photo_url']),
-        'photoUrl'           => $row['photo_url'],
+        'photoAttached'      => $photoDataUri !== null,
+        'photoUrl'           => $photoDataUri,
+        'photos'             => $photoDataUri !== null
+            ? [['url' => $photoDataUri, 'caption' => null, 'createdAt' => null]]
+            : [],
+        'actions'            => [],
         'causeOfFire'        => $row['what_is_on_fire'],
         'findings'           => $row['location_details'],
         'additionalNotes'    => $row['street_landmark'],

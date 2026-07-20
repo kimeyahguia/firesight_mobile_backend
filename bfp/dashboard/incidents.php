@@ -24,13 +24,18 @@ try {
     // Optional filters — pwedeng dagdagan ng ?status=Pending o ?barangay=Bucana kung kailangan
     $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : null;
 
+    // ── Mahalaga: HUWAG kunin ang buong photo_url (longblob) dito.
+    // Para lang malaman ng list card kung may kalakip na larawan, gumagamit
+    // tayo ng LENGTH() para makakuha ng byte count na lang, hindi ang buong
+    // binary data. Ang full image ay kukunin na lang sa details.php pag
+    // binuksan ang isang specific incident (via "View Details").
     $sql = "SELECT
                 i.id,
                 i.reference_id,
                 i.user_id,
                 i.title,
                 i.description,
-                i.photo_url,
+                LENGTH(i.photo_url) AS photo_len,
                 i.location,
                 i.barangay,
                 i.street_landmark,
@@ -66,34 +71,34 @@ try {
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-   $incidents = array_map(function ($row) {
-            return [
-                'id'                => (string) $row['id'],
-                'refId'              => $row['reference_id'],
-                'reporter'           => $row['full_name'] ?? 'Unknown',
-                'reporterPhone'      => $row['contact_number'] ?? '',
-                'reporterBarangay'   => $row['barangay'] ?? '',
-                'barangay'           => $row['barangay'] ?? '',
-                'location'           => $row['location'] ?? '',   // ⬅ BAGO — buong location string mula sa DB
-                'type'               => $row['incident_type'] ?? $row['title'],
-                'dateTime'           => date('M j, Y · h:i A', strtotime($row['created_at'])),
-                'status'             => ucfirst(strtolower($row['status'])),
-                'severity'           => $row['severity'] ?? 'Moderate',
-                'description'        => $row['description'] ?? '',
-                'photoAttached'      => !empty($row['photo_url']),
-                'photoUrl'           => $row['photo_url'],
-                'causeOfFire'        => $row['what_is_on_fire'],
-                'findings'           => $row['location_details'],
-                'additionalNotes'    => $row['street_landmark'],
-                'latitude'           => $row['latitude'] !== null ? (float) $row['latitude'] : null,
-                'longitude'          => $row['longitude'] !== null ? (float) $row['longitude'] : null,
-                'peopleAtRisk'       => $row['people_at_risk'],
-                'fireActive'         => $row['fire_active'],
-                'respondersOnSite'   => $row['responders_on_site'],
-                'verifiedByName'     => $row['verified_by_name'],
-                'verifiedAt'         => $row['verified_at'] ? date('M j, Y · h:i A', strtotime($row['verified_at'])) : null,
-            ];
-        }, $rows);
+    $incidents = array_map(function ($row) {
+        return [
+            'id'                => (string) $row['id'],
+            'refId'              => $row['reference_id'],
+            'reporter'           => $row['full_name'] ?? 'Unknown',
+            'reporterPhone'      => $row['contact_number'] ?? '',
+            'reporterBarangay'   => $row['barangay'] ?? '',
+            'barangay'           => $row['barangay'] ?? '',
+            'location'           => $row['location'] ?? '',
+            'type'               => $row['incident_type'] ?? $row['title'],
+            'dateTime'           => date('M j, Y · h:i A', strtotime($row['created_at'])),
+            'status'             => ucfirst(strtolower($row['status'])),
+            'severity'           => $row['severity'] ?? 'Moderate',
+            'description'        => $row['description'] ?? '',
+            'photoAttached'      => (int) $row['photo_len'] > 0,
+            'photoUrl'           => null, // hindi na sinasama sa list; kunin sa details.php
+            'causeOfFire'        => $row['what_is_on_fire'],
+            'findings'           => $row['location_details'],
+            'additionalNotes'    => $row['street_landmark'],
+            'latitude'           => $row['latitude'] !== null ? (float) $row['latitude'] : null,
+            'longitude'          => $row['longitude'] !== null ? (float) $row['longitude'] : null,
+            'peopleAtRisk'       => $row['people_at_risk'],
+            'fireActive'         => $row['fire_active'],
+            'respondersOnSite'   => $row['responders_on_site'],
+            'verifiedByName'     => $row['verified_by_name'],
+            'verifiedAt'         => $row['verified_at'] ? date('M j, Y · h:i A', strtotime($row['verified_at'])) : null,
+        ];
+    }, $rows);
 
     echo json_encode([
         'success' => true,

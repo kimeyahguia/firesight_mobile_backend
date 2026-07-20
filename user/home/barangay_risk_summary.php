@@ -15,7 +15,6 @@ if (!isset($conn) || !($conn instanceof PDO)) {
 }
 
 // ── Risk level thresholds based on incident count this month ──
-// (i-adjust mo na lang ito kung may sarili kang basis mula sa thesis mo)
 function computeRiskLevel($count) {
     if ($count >= 7) return 'Critical';
     if ($count >= 4) return 'High';

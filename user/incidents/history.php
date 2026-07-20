@@ -1,6 +1,11 @@
 <?php
 //history.php
+error_reporting(E_ERROR | E_PARSE);
+ini_set('display_errors', '0');
+
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+
 require_once __DIR__ . '/../../config/db.php';
 
 $barangayId = $_GET['barangay_id'] ?? null;
@@ -25,4 +30,7 @@ try {
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Failed to fetch incident history.']);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Server error while fetching incident history.']);
 }

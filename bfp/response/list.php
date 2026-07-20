@@ -33,34 +33,63 @@ function timeAgo($datetime) {
     return floor($diff / 86400) . ' day' . (floor($diff / 86400) > 1 ? 's' : '') . ' ago';
 }
 
-$stageOrder = ['Reported', 'Verified', 'Dispatched', 'On Scene', 'Resolved'];
+// Iisang set na lang ng stages ngayon — tugma sa incidents.status:
+// pending → verified → responding → resolved
+$stageOrder = ['pending', 'verified', 'responding', 'resolved'];
 $includeResolved = isset($_GET['includeResolved']) && $_GET['includeResolved'] == '1';
 
 try {
-    $where = $includeResolved ? '' : "WHERE (ir.stage IS NULL OR ir.stage != 'Resolved')";
+    // incidents.status na ang tanging pinagbabasehan ng filter — iisa na siyang
+    // source of truth ngayon (laging naka-sync 'to sa bawat update_status.php call).
+    $where = $includeResolved
+        ? ''
+        : "WHERE i.status != 'resolved'";
+
+    // Nag-JOIN pa rin sa PINAKA-HULING incident_response row bawat incident
+    // (pinakamalaking id), para sa assigned responder/truck at mga stage timestamps.
     $stmt = $conn->query("
         SELECT
             i.id, i.reference_id, i.title, i.barangay, i.location, i.street_landmark,
-            i.latitude, i.longitude, i.severity, i.incident_type,
+            i.latitude, i.longitude, i.severity, i.incident_type, i.status AS incident_status,
             i.full_name AS reporter_name, i.created_at,
             ir.assigned_responder_id, ir.assigned_truck_id, ir.stage,
-            ir.reported_at, ir.verified_at, ir.dispatched_at, ir.on_scene_at, ir.resolved_at,
+            ir.pending_at, ir.verified_at, ir.responding_at, ir.resolved_at,
             p.full_name AS responder_name, p.rank_title AS responder_rank, p.phone AS responder_phone,
             t.name AS truck_name, t.plate_no AS truck_plate, t.type AS truck_type,
             t.water_capacity AS truck_capacity, t.driver_name AS truck_driver
         FROM incidents i
-        LEFT JOIN incident_response ir ON ir.incident_id = i.id
+        LEFT JOIN (
+            SELECT ir1.*
+            FROM incident_response ir1
+            INNER JOIN (
+                SELECT incident_id, MAX(id) AS max_id
+                FROM incident_response
+                GROUP BY incident_id
+            ) latest ON latest.incident_id = ir1.incident_id AND latest.max_id = ir1.id
+        ) ir ON ir.incident_id = i.id
         LEFT JOIN bfp_personnel p ON p.id = ir.assigned_responder_id
         LEFT JOIN fire_trucks t ON t.id = ir.assigned_truck_id
         $where
-        ORDER BY i.created_at DESC
+        ORDER BY 
+            CASE LOWER(i.status)
+                WHEN 'responding' THEN 1
+                WHEN 'verified' THEN 2
+                WHEN 'pending' THEN 3
+                WHEN 'resolved' THEN 4
+                ELSE 3
+            END ASC,
+            i.created_at DESC
     ");
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $data = array_map(function ($r) use ($stageOrder) {
-        $stage = $r['stage'] ?: 'Reported';
-        $stageIndex = array_search($stage, $stageOrder);
+        // incidents.status ang ginagamit na base ng stage (single source of truth),
+        // ir.stage na lang ang fallback kung sakaling wala pang value ang status.
+        $rawStage = $r['incident_status'] ?: ($r['stage'] ?: 'pending');
+        $stageKey = strtolower($rawStage);
+        $stageIndex = array_search($stageKey, $stageOrder);
         if ($stageIndex === false) $stageIndex = 0;
+        $stage = ucfirst($stageKey);
 
         $distanceKm = null;
         $etaMinutes = null;
@@ -82,8 +111,8 @@ try {
             'barangay' => $r['barangay'],
             'address' => trim(($r['street_landmark'] ? $r['street_landmark'] . ', ' : '') . ($r['location'] ?: '')),
             'risk' => $r['severity'],
-            'reportedAt' => $r['reported_at'] ?: $r['created_at'],
-            'reportedAgo' => timeAgo($r['reported_at'] ?: $r['created_at']),
+            'reportedAt' => $r['pending_at'] ?: $r['created_at'],
+            'reportedAgo' => timeAgo($r['pending_at'] ?: $r['created_at']),
             'reporterName' => $r['reporter_name'] ?: 'Anonymous Citizen Report',
             'lat' => $r['latitude'] ? (float) $r['latitude'] : null,
             'lng' => $r['longitude'] ? (float) $r['longitude'] : null,
@@ -107,8 +136,10 @@ try {
             'stageIndex' => (int) $stageIndex,
             'stageLabel' => $stage,
             'stageTimestamps' => [
-                $r['reported_at'] ?: $r['created_at'],
-                $r['verified_at'], $r['dispatched_at'], $r['on_scene_at'], $r['resolved_at'],
+                $r['pending_at'] ?: $r['created_at'],
+                $r['verified_at'],
+                $r['responding_at'],
+                $r['resolved_at'],
             ],
         ];
     }, $rows);

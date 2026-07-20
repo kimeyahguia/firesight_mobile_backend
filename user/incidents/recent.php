@@ -1,5 +1,8 @@
 <?php
 //recent.php
+error_reporting(E_ERROR | E_PARSE);
+ini_set('display_errors', '0');
+
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET");
@@ -18,16 +21,17 @@ try {
                 status, 
                 created_at 
               FROM incidents 
+              WHERE DATE(created_at) = CURDATE()
               ORDER BY created_at DESC 
               LIMIT 10";
 
-    $stmt = $conn->prepare($query); // ginamit ko yung $conn, dapat match sa db.php mo
+    $stmt = $conn->prepare($query);
     $stmt->execute();
 
     $incidents = array();
 
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $row['time_ago'] = date("g:i A", strtotime($row['created_at'])); 
+        $row['time_ago'] = date("g:i A", strtotime($row['created_at']));
         $incidents[] = $row;
     }
 
@@ -40,7 +44,12 @@ try {
     http_response_code(500);
     echo json_encode([
         "success" => false,
-        "message" => "Database error: " . $e->getMessage()
+        "message" => "Database error while fetching recent incidents."
+    ]);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode([
+        "success" => false,
+        "message" => "Server error while fetching recent incidents."
     ]);
 }
-?>

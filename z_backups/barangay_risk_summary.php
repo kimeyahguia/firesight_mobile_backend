@@ -1,4 +1,12 @@
 <?php
+/**
+ * ⚠️ DEPRECATED — replaced by shared/risk_map.php
+ * Kept temporarily for rollback safety. Confirmed unused as of 2026-07-23
+ * (map.tsx, home screen, BFP dashboard, and alerts.tsx/RiskMapTab all
+ * migrated to services/riskMap.ts -> shared/risk_map.php).
+ * TODO: safe to delete after a few days of stable testing.
+ */
+
 // home/barangay_risk_summary.php
 error_reporting(E_ERROR | E_PARSE);
 ini_set('display_errors', '0');

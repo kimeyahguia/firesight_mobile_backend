@@ -22,9 +22,11 @@ try {
         'officeHours' => $row['office_hours'],
         'established' => $row['established'],
         'barangaysCovered' => (int) $row['barangays_covered'],
+        'municipality' => $row['municipality'] ?? 'Lian',
         'mission' => $row['mission'],
         'vision' => $row['vision'],
         'services' => json_decode($row['services'], true) ?? [],
+        'heroImages' => json_decode($row['hero_images'] ?? '', true) ?? [],
     ];
 
     echo json_encode(['success' => true, 'data' => $data]);

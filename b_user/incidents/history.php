@@ -6,6 +6,17 @@ ini_set('display_errors', '0');
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+        }
+        echo json_encode(['success' => false, 'message' => 'Fatal server error: ' . $error['message']]);
+    }
+});
+
 require_once __DIR__ . '/../../config/db.php';
 
 $barangayId = $_GET['barangay_id'] ?? null;
@@ -18,7 +29,15 @@ if (!$barangayId) {
 
 try {
     $stmt = $conn->prepare("
-        SELECT id, reference_id, title, description, status, severity, created_at, resolved_at
+        SELECT
+            id,
+            reference_id,
+            title,
+            incident_type AS category,
+            severity,
+            status,
+            created_at AS incident_date,
+            resolved_at AS verified_date
         FROM incidents
         WHERE barangay = (SELECT name FROM barangays WHERE id = :barangay_id)
         ORDER BY created_at DESC
